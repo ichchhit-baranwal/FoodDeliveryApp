@@ -1,0 +1,67 @@
+---Restaurant----
+# /acceptOrder
+* 201 on valid restId, valid itemId, valid qty
+* 410 on invalid restId
+* 410 on invalid itemId
+* 410 on qty demanded is more
+* 410 on -ve qty
+
+# /refillItem
+* 201 on valid restId, valid itemId, valid qty
+* 201 on invalid restId
+* 201 on invalid itemId
+* 201 on qty demanded is -ve
+
+# /reInitialize
+*201 unconditionally (check if data structure reinitialized)
+
+----Wallet----
+# /addBalance
+* 201 on valid custId and valid Balance
+* 201 on invalid custId
+* 201 on -ve balance data should not be changed
+
+# /deductBalance
+* 201 on valid custId and valid Balance
+* 410 on invalid custId
+* 410 on out of range balance
+* 410 on -ve balance
+
+# /balance/{num}
+*200 with payload
+
+# /reInitialize
+*201 uncoditionally (check if data structure reinitialized)
+
+----Delivery----
+# /requestOrder
+* If no agent is available for assigning to order
+* If billamount(qty asked) is computed to be negative then 410
+* If balance cannot be deducted .ie. wallet service returned 410
+* If resturant service returned 410 then return 410 and add billamount back to wallet
+* if restaurant service returned 201 then create order and return 201
+
+# /agentSignIn
+* agent Signed In return 201
+* agent signed out find unassigned order set agent unavailable
+* agent signed out no unassigned order set agent available
+
+# /agentSignOut
+* return 201 unconditionally
+
+# /orderDelivered
+* if orderid is wrong return 201
+* if orderid is UNASSIGNED or DELIVERED return 201
+* if orderid is ASSIGNED change status to Delivered and
+	-- assign its agent to new order make unavailable
+	-- make agent available
+
+
+# /order/num (GET)
+
+
+# /agent/num
+* return status code 200 with {"agendId": num , "status": y }
+
+# /reinitialize
+* 201 unconditionally (check if all data structure and variables reinitialized)

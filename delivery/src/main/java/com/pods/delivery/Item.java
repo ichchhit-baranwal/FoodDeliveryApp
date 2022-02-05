@@ -1,4 +1,4 @@
-package com.pods.restaurant;
+package com.pods.delivery;
 
 import java.util.Objects;
 
