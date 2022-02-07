@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +16,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.net.ssl.HttpsURLConnection;
 import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.http.HttpStatus;
@@ -28,20 +26,48 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * The class serves as entry point to any 
+ * request made to the service. It is auto-detected  
+ * as the controller through classpath scanning 
+ */
 @RestController
 public class DeliveryController {
+	
+	/**
+	 * restaurantMap is ConcurrentHashMap is the in memory data structure that has
+	 * been used storing all the restaurant so that id based look up
+	 * can be made easily and faster. 
+	 */
 	private static ConcurrentHashMap<Long, Restaurant> restaurantMap = new ConcurrentHashMap<Long, Restaurant>();
+	/**
+	 * deliverAgentMap to store in memory
+	 * agents information which supports quick and 
+	 * easy lookups based on agentId
+	 */
 	private static ConcurrentHashMap<Long, DeliveryAgent> deliveryAgentMap = new ConcurrentHashMap<Long, DeliveryAgent>();
+	/**
+	 * orderMap to orders information in memory 
+	 * and supports easy and fast lookup based on orderid.
+	 */
 	private static ConcurrentHashMap<Long, Order> orderMap = new ConcurrentHashMap<Long, Order>();
 	private static final String INITIAL_FILE_PATH="/initialData.txt";
-	private static final String RESTAURANT_URL="http://localhost:8080/";
-	private static final String WALLET_URL="http://localhost:8082/";
+//	private static final String INITIAL_FILE_PATH="F:\\MTechCourse\\Principal Of Distribution Software\\PoDS_Project_1\\initialData.txt";
+//	private static final String RESTAURANT_URL="http://localhost:8080/";
+//	private static final String WALLET_URL="http://localhost:8082/";
+	private static final String RESTAURANT_URL="http://host.docker.internal:8080/";
+	private static final String WALLET_URL="http://host.docker.internal:8082/";
 	private static final int START_ORDER_ID=1000;
 	private static long currentOrderId = 0;
 	static {
         initialize();
 	}
     
+	/**
+	 * Returns the available delivery agent
+	 * with lowest agentId
+	 * @return agent
+	 */
 	private static DeliveryAgent getAvailableDeliveryAgent() {
 		DeliveryAgent agent = null;
 		for(long id : deliveryAgentMap.keySet()) {
@@ -54,6 +80,11 @@ public class DeliveryController {
 		return agent;
 	}
 	
+	/**
+	 * Returns the unassigned order with
+	 * lowest order id
+	 * @return order
+	 */
 	private static Order getUnassignedOrders() {
 		Order order = null;
 		for(long id : orderMap.keySet()) {
@@ -66,6 +97,16 @@ public class DeliveryController {
 		return order;
 	}
 	
+	
+	/**
+	 * This method serves the request to the postfix
+	 * url /requestOrder and creates the order based
+	 * on series of conditions and returns order 
+	 * as a part of response or error 410 if order
+	 * could not be created 
+	 * @param data
+	 * @return ResponseEntity as response to client
+	 */
     @PostMapping("/requestOrder")
     public ResponseEntity<ReqOrder> requestOrder(@RequestBody ReqOrderDTO data) {
     	System.out.println(data);
@@ -108,7 +149,7 @@ public class DeliveryController {
     			}
     			else {
     				System.out.println("Else of restaurant service");
-    				HttpStatus test = generatePostRequest(WALLET_URL, "addBalance", params);
+    				generatePostRequest(WALLET_URL, "addBalance", params);
     				status_code = HttpStatus.GONE;
     			}
     		}
@@ -121,11 +162,19 @@ public class DeliveryController {
     	return new ResponseEntity<>(returnObj,status_code);
     }
     
-    public HttpStatus generatePostRequest(String url, String urlPrefix, ConcurrentHashMap<String, String> parameters) {
+    /**
+     * Use to make post request to the url with urlPostfix
+     * with parameters as json object 
+     * @param url
+     * @param urlPostfix
+     * @param parameters
+     * @return
+     */
+    public HttpStatus generatePostRequest(String url, String urlPostfix, ConcurrentHashMap<String, String> parameters) {
     	URL urlObj;
     	HttpStatus statusCode = HttpStatus.GONE;
 		try {
-			urlObj = new URL(url+urlPrefix);
+			urlObj = new URL(url+urlPostfix);
 			HttpURLConnection con = (HttpURLConnection)urlObj.openConnection();
 			con.setRequestMethod("POST");
 			con.setRequestProperty("Content-Type", "application/json; utf-8");
@@ -152,13 +201,19 @@ public class DeliveryController {
             }
 
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.out.println(e.getMessage()+" "+statusCode);
 		}
     
     	return statusCode;
     }
 
+    /**
+     * Assigns agent to unassigned order
+     * with minimum order id if available
+     * else makes sets agents status as
+     * available
+     * @param agent
+     */
     private void assignAgent(DeliveryAgent agent) {
     	Order unAss = getUnassignedOrders();
     	if(unAss != null) {
@@ -170,24 +225,29 @@ public class DeliveryController {
     	}
     }
     
+    /**
+     * Change status of the agent
+     * to available if no unassigned order available
+     * else assign order and change status to available
+     * on request made to /agentSignIn endpoint
+     * @param agentId
+     * @return ResponseEntity as response to client
+     */
     @PostMapping("/agentSignIn")
     public ResponseEntity<String> agentSignIn(@RequestBody ReqAgent agentId){
     	DeliveryAgent currAgent = deliveryAgentMap.get((long)agentId.getAgentId());
     	if(currAgent!=null && currAgent.getStatus().equals(DeliveryAgent.SIGNEDOUT)) {
-//    		Order unAss = getUnassignedOrders();
-//    		if(unAss !=null) {
-//    			unAss.setDeliveryAgent(currAgent);
-//    			unAss.setStatus(Order.ASSIGNED);
-//    			currAgent.setStatus(DeliveryAgent.UNAVAILABLE);
-//    		}else {
-//    			currAgent.setStatus(DeliveryAgent.AVAILABLE);
-//    		}
     		assignAgent(currAgent);
     	}
     	System.out.println(currAgent);
     	return new ResponseEntity<>(HttpStatus.CREATED);
     }
     
+    /**
+     * Signs out the agent if available else do nothing
+     * @param agentId
+     * @return RepsonseEntity to the requesting client
+     */
     @PostMapping("/agentSignOut")
     public ResponseEntity<String> agentSignOut(@RequestBody ReqAgent agentId){
     	DeliveryAgent currAgent = deliveryAgentMap.get((long)agentId.getAgentId());
@@ -198,7 +258,14 @@ public class DeliveryController {
     	return new ResponseEntity<>(HttpStatus.CREATED);
     }
     
-    
+    /**
+     * Change status of the order id passed as parameter
+     * to delivered when request is made to /orderDelivered 
+     * end point and assigns the agent to new order
+     * if any unassigned order is present
+     * @param order
+     * @return ResponseEntity as response to requesting client
+     */
     @PostMapping("/orderDelivered")
     public ResponseEntity<String> orderDelivered(@RequestBody ReqOrder order){
     	Order orderObj = orderMap.get((long)order.getOrderId());
@@ -209,6 +276,13 @@ public class DeliveryController {
     	return new ResponseEntity<>(HttpStatus.CREATED);
     }
     
+    
+    /**
+     * fetches the order details for the order id
+     * returns it in the response body else 404 is returned
+     * @param num
+     * @return ResponseEntity wrapping order object
+     */
     @GetMapping("/order/{num}")
     public ResponseEntity<ResOrder> order(@PathVariable long num){
     	Order currOrder = orderMap.get(num);
@@ -222,6 +296,13 @@ public class DeliveryController {
     	return new ResponseEntity<ResOrder>(responseOrder, status_code);
     }
     
+    
+    /**
+     * fetches the agent details for the agent id
+     * returns it in the response body
+     * @param num
+     * @return ResponseEntity wrapping order object
+     */
     @GetMapping("/agent/{num}")
     public DeliveryAgent agent(@PathVariable long num) {
     	DeliveryAgent agent = deliveryAgentMap.get(num) ;
@@ -231,6 +312,10 @@ public class DeliveryController {
     }
     
     
+    /**
+     * initialize the data in the restauranttMap and deliveryAgentMap
+     * after reading data from the file INITIAL_FILE_PATH    
+     */
     public static void initialize() {
     	Path filePath = Paths.get(INITIAL_FILE_PATH);
         Charset charset = StandardCharsets.UTF_8;
@@ -300,7 +385,10 @@ public class DeliveryController {
 //        getAvailableDeliveryAgent();
     }
 
-    
+    /**
+     * reInitialize the walletMap to original condition
+     * @return ResponseEntity as the response to client
+     */
     @PostMapping("/reInitialize")
     public ResponseEntity<String> reInitialize(HttpServletResponse response) {
     	initialize();

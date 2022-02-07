@@ -7,18 +7,18 @@ import java.util.Objects;
  * custId to identify customer to which the wallet belongs
  * amount the balance present in the wallet
  */
-public class Wallet {
+public class ResWallet {
 	private long custId;
-	private int amount;
+	private int balance;
 	
 	/**
 	 * @param custId
 	 * @param amount
 	 */
-	public Wallet(long custId, int amount) {
+	public ResWallet(long custId, int amount) {
 		super();
 		this.custId = custId;
-		this.amount = amount;
+		this.balance = amount;
 	}
 	/**
 	 * @return custId to which wallet belongs to
@@ -33,16 +33,16 @@ public class Wallet {
 		this.custId = custId;
 	}
 	/**
-	 * @return amount present in the wallet
+	 * @return balance present in the wallet
 	 */
-	public int getAmount() {
-		return amount;
+	public int getBalance() {
+		return balance;
 	}
 	/**
-	 * @param amount
+	 * @param balance
 	 */
-	public void setAmount(int amount) {
-		this.amount = amount;
+	public void setBalance(int amount) {
+		this.balance = amount;
 	}
 	/**
 	 * For printing purpose to 
@@ -51,7 +51,7 @@ public class Wallet {
 	 */
 	@Override
 	public String toString() {
-		return "Wallet [custId=" + custId + ", amount=" + amount + "]";
+		return "Wallet [custId=" + custId + ", amount=" + balance + "]";
 	}
 	/**
 	 * creates the hash function
@@ -74,7 +74,7 @@ public class Wallet {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		Wallet other = (Wallet) obj;
+		ResWallet other = (ResWallet) obj;
 		return custId == other.custId;
 	}
 
