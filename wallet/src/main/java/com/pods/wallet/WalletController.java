@@ -46,9 +46,11 @@ public class WalletController {
      */
     @PostMapping("/addBalance")
     public ResponseEntity<String> addBalance(@RequestBody Wallet data) {
+    	System.out.println("Data "+data);
     	Wallet currCust = walletMap.get(data.getCustId());
     	if(currCust != null && data.getAmount()>=0)
     		currCust.setAmount(currCust.getAmount()+data.getAmount());
+    	System.out.println("Current Customer "+currCust);
     	return new ResponseEntity<String>(HttpStatus.CREATED);
     }
     /**

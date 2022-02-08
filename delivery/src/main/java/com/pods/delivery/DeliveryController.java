@@ -70,11 +70,14 @@ public class DeliveryController {
 	 */
 	private static DeliveryAgent getAvailableDeliveryAgent() {
 		DeliveryAgent agent = null;
+		long min_id = Integer.MAX_VALUE;
 		for(long id : deliveryAgentMap.keySet()) {
 			DeliveryAgent curr = deliveryAgentMap.get(id);
 			if(curr.getStatus().equals(DeliveryAgent.AVAILABLE)) {
-				agent = curr;
-				break;
+				if(min_id > curr.getAgentId()) {
+					agent = curr;	
+					min_id = curr.getAgentId();
+				}
 			}
 		}
 		return agent;
@@ -87,11 +90,14 @@ public class DeliveryController {
 	 */
 	private static Order getUnassignedOrders() {
 		Order order = null;
+		long min_id = Integer.MAX_VALUE;
 		for(long id : orderMap.keySet()) {
 			Order curr = orderMap.get(id);
 			if(curr.getStatus().equals(Order.UNASSIGNED)) {
-				order = curr;
-				break;
+				if(min_id > curr.getOrderId()) {
+					order = curr;	
+					min_id = curr.getOrderId();
+				}
 			}
 		}
 		return order;
@@ -113,6 +119,7 @@ public class DeliveryController {
     	ReqOrder returnObj = null;
     	HttpStatus status_code = HttpStatus.GONE;
     	Restaurant currRes = restaurantMap.get(data.getRestId());
+    	System.out.println("Restaurant returned from backend"+currRes);
     	double billAmount = 0;
     	if(currRes != null) {
     		Item currItem = currRes.getItem(data.getItemId());
@@ -122,16 +129,17 @@ public class DeliveryController {
     	}
     	if(billAmount > 0) {
     		ConcurrentHashMap<String, String> params = new ConcurrentHashMap<>();
+    		ConcurrentHashMap<String, String> resParams = new ConcurrentHashMap<>();
     		params.put("custId", String.valueOf(data.getCustId()));
     		params.put("amount", String.valueOf(billAmount));
     		System.out.println("Before deduct");
     		HttpStatus out = generatePostRequest(WALLET_URL, "deductBalance", params);
     		if(out.compareTo(HttpStatus.CREATED) == 0) {
-    			params.clear();
-    			params.put("restId", ""+data.getRestId());
-    			params.put("itemId", ""+data.getItemId());
-    			params.put("qty", ""+data.getQty());
-    			HttpStatus outResServ = generatePostRequest(RESTAURANT_URL, "acceptOrder", params);
+    			resParams.clear();
+    			resParams.put("restId", ""+data.getRestId());
+    			resParams.put("itemId", ""+data.getItemId());
+    			resParams.put("qty", ""+data.getQty());
+    			HttpStatus outResServ = generatePostRequest(RESTAURANT_URL, "acceptOrder", resParams);
     			System.out.println("Out restaurant service "+outResServ);
     			if(outResServ.equals(HttpStatus.CREATED)){
     				Order obj = new Order(currentOrderId);
@@ -191,7 +199,9 @@ public class DeliveryController {
             	os.write(input);
             }
             statusCode = HttpStatus.valueOf(con.getResponseCode());
-            System.out.println(statusCode);
+            System.out.println("Request Made "+url+urlPostfix);
+            System.out.println("Json sent "+jsonInputString);
+            System.out.println("Status code redturned "+statusCode);
             try(BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()))){
             	String response = "";
             	String responseLine=null;
@@ -217,6 +227,7 @@ public class DeliveryController {
     private void assignAgent(DeliveryAgent agent) {
     	Order unAss = getUnassignedOrders();
     	if(unAss != null) {
+    		System.out.println(unAss);
     		unAss.setDeliveryAgent(agent);
 			unAss.setStatus(Order.ASSIGNED);
 			agent.setStatus(DeliveryAgent.UNAVAILABLE);
